@@ -22,9 +22,15 @@ class PostgresSettings(EnvSettings):
     db_name: str = Field(default="auth_db")
 
 
+class RedisSettings(EnvSettings):
+    redis_host: str = Field(default="127.0.0.1")
+    redis_port: int = Field(default=6379)
+    cache_expire_in_seconds: int = Field(default=(60 * 5))
+
+
 class Settings(BaseSettings):
     pg: PostgresSettings = PostgresSettings()
+    redis: RedisSettings = RedisSettings()
 
 
 settings = Settings()
-
