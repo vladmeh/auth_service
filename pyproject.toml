@@ -28,6 +28,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.ruff]
 line-length = 120
+exclude = ["migrations"]
 
 [tool.ruff.lint]
 select = [
@@ -56,3 +57,4 @@ warn_unused_ignores = true
 disallow_any_generics = true
 check_untyped_defs = true
 no_implicit_reexport = true
+exclude = ["migrations"]
