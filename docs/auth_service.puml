@@ -1,0 +1,59 @@
+@startuml
+'https://plantuml.com/sequence-diagram
+
+hide footbox
+header %date("dd MMMM YYYY")
+title Auth service
+
+participant Client
+participant Api
+participant Auth
+participant AccessToken
+participant RefreshToken
+
+== Login ==
+
+Client -> Auth: Client requests access token
+Auth --> AccessToken: Create access token
+activate AccessToken
+
+Auth --> RefreshToken: Create refresh token
+activate RefreshToken
+
+Auth -> Client: Return access and refresh tokens
+
+== Requests ==
+
+Client -> Api: Request resource with access token
+Api <-> Auth: Introspect access token
+Client <- Api: Return resource
+
+Auth --> AccessToken: Expire access token
+destroy AccessToken
+
+Client -> Api: Request resource with access token
+Api <-> Auth: Introspect access token
+Client <- Api: Return error
+
+== Refresh access token ==
+
+Client -> Auth: Refresh access token
+Auth --> AccessToken: Create access token
+activate AccessToken
+
+Auth -> Client: Return access and refresh tokens
+
+Client -> Api: Request resource with access token
+Api <-> Auth: Introspect access token
+Client <- Api: Return resource
+
+== Logout ==
+
+Client -> Auth: Revoke refresh token
+Auth --> AccessToken: Revoke access token
+destroy AccessToken
+
+Auth --> RefreshToken: Revoke refresh token
+destroy RefreshToken
+
+@enduml
