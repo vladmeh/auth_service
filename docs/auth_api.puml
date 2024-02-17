@@ -1,0 +1,102 @@
+@startuml
+'https://plantuml.com/sequence-diagram
+
+'hide footbox
+header %date("dd MMMM YYYY")
+title Auth service
+
+participant Movies
+participant RouterApi
+participant Auth
+participant User
+participant LoginHistory
+participant Role
+
+participant Redis
+participant Postgres
+
+== Регистрация ==
+
+Movies -> RouterApi: POST /auth/register {email, password, confirm_password, role: guest}
+RouterApi -> RouterApi: validation email
+RouterApi -> RouterApi: validation password
+RouterApi -> RouterApi: validation confirm_password
+
+Movies <- RouterApi: ValidationError 409 message error {email: no validate}
+
+RouterApi -> Auth: email, password
+Auth -> Auth: hash password
+Auth -> User: create User(email, hash_password, role: guest)
+User -> Postgres: save User
+
+Movies <- RouterApi: 201 Create {id}
+
+== Login ==
+
+Movies -> RouterApi: POST /auth/login {email, password}
+RouterApi -> Auth: email, password
+Auth -> Auth: hash(passsword)
+Auth -> User: confirm(email, hash_password)
+Auth -> Auth: generate access token
+Auth -> Auth: generate refresh token
+Auth -> Postgres: create refresh token
+
+Auth -> LoginHistory: create LoginHistory(time, ip, устройство)
+LoginHistory -> Postgres: save time, ip, устройство
+
+RouterApi -> Movies: refresh && access token
+
+== Requests ==
+
+Movies -> RouterApi: GET /users Headers Authorization "bearer access token"
+RouterApi -> Auth: asses token
+Auth -> Auth: validate token
+Auth -> User: get User(id)
+User -> Postgres: get
+RouterApi -> Movies: {list Users}
+
+Movies -> RouterApi: GET /users/me Headers Authorization "bearer access token"
+RouterApi -> Auth: asses token
+Auth -> Auth: validate token
+Auth -> User: get User(id)
+User -> Postgres: get
+RouterApi -> Movies: {id, email}
+
+Movies -> RouterApi: GET /users/me/history Headers Authorization "bearer access token"
+RouterApi -> Auth: asses token
+Auth -> Auth: validate token
+Auth -> User: get User(id)
+User -> Postgres: get
+RouterApi -> Movies: {history}
+
+== Expire Token ==
+
+Movies -> RouterApi: GET /users/me Headers Authorization "bearer access token"
+RouterApi -> Auth: asses token
+Auth -> Auth: validate token
+Auth -> RouterApi: ExceptionValidateToken
+RouterApi -> Movies: 409 RequestErrorBody {message}
+
+== Refresh Token ==
+
+Movies -> RouterApi: POST /refresh_token Headers "bearer refresh token"
+RouterApi -> Auth: refresh token
+Auth -> Auth: validate refresh token
+Auth -> Postgres: delete old refresh token
+Auth -> Auth: generate access token
+Auth -> Auth: generate refresh token
+Auth -> Postgres: create refresh token
+
+RouterApi -> Movies: refresh && access token
+
+== Logout ==
+
+Movies -> RouterApi: DELETE /logout Headers "bearer access token"
+RouterApi -> Auth: access token
+Auth -> Redis: validate access token
+Auth -> Auth: reject access token
+Auth -> Redis: added to black list access token
+Auth -> Postgres: reject refresh token
+
+RouterApi -> Movies: 204 Delete
+@enduml
