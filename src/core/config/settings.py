@@ -14,6 +14,13 @@ class EnvSettings(BaseSettings):
     )
 
 
+class ProjectMetadataSettings(EnvSettings):
+    project_name: str = Field(default="Auth Service")
+    docs_url: str = "/api/openapi"
+    openapi_url: str = "/api/openapi.json"
+    version: str = "0.1.0"
+
+
 class PostgresSettings(EnvSettings):
     db_user: str = Field(default="app")
     db_password: str = Field(default="123qwe")
@@ -29,6 +36,7 @@ class RedisSettings(EnvSettings):
 
 
 class Settings(BaseSettings):
+    project: ProjectMetadataSettings = ProjectMetadataSettings()
     pg: PostgresSettings = PostgresSettings()
     redis: RedisSettings = RedisSettings()
 

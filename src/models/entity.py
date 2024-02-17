@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 
 from db.postgres import Base
-from sqlalchemy import DateTime, String
+from sqlalchemy import DateTime, String, Uuid
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -11,7 +11,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 class User(Base):
     __tablename__ = "users"
 
-    id: Mapped[str] = mapped_column(
+    id: Mapped[Uuid] = mapped_column(
         UUID(as_uuid=True),
         primary_key=True,
         default=uuid.uuid4,

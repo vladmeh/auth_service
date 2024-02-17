@@ -1,6 +1,8 @@
 from contextlib import asynccontextmanager
 
 import uvicorn
+
+from api import auth
 from core.config.settings import settings
 from db import redis_db
 from db.postgres import create_database
@@ -21,8 +23,13 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     lifespan=lifespan,
-    version="0.1.0"
+    title=settings.project.project_name,
+    docs_url=settings.project.docs_url,
+    openapi_url=settings.project.openapi_url,
+    version=settings.project.version,
 )
+
+app.include_router(auth.router, prefix="/auth", tags=["auth"])
 
 if __name__ == "__main__":
     uvicorn.run(
