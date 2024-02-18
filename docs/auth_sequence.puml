@@ -1,13 +1,21 @@
 @startuml
-object AuthApi
-object UserApi
+object Api {
+    auth.registers(request: UserRequest): UserResponse
+    auth.login(request: UserRequest): UserResponse
+    auth.refresh_token(request: Request): Response
+    auth.logout(request: Request): Response
+
+    users.get_users(request: Request): list[UserResponse]
+    users.get_user(request: Request): UserResponse
+}
 entity UserRequest
 entity UserResponse
 class UserManager{
     create_user(data: dict): User
     authenticate(credentials: dict): User
+    save_login_history(data: dict, request_data: dict): LoginHistory
+
     _hashed_password(password: str): str
-    save_login_history(user: User, request_data: dict): None
 }
 class JWT{
     assess_token
@@ -21,6 +29,16 @@ class JWT{
     _decode_jwt(encoded_jwt: str): dict
 }
 entity User
+entity LoginHistory
+
+Api *-- UserRequest
+Api *-- UserResponse
+Api o.. UserManager
+Api o.right. JWT
+
+UserManager *-down- User
+UserManager *-down- LoginHistory
+
 @enduml
 
 @startuml
@@ -106,7 +124,8 @@ activate JWT.refreshToken #green
 JWT.refreshToken --> Postgres: save refresh_token
 
 AuthApi --> UserManager: **save_login_history(user, <request data>)**
-LoginHistory --> Postgres: save login history
+UserManager --> LoginHistory: create LoginHistory(data)
+LoginHistory --> Postgres: save login_history
 
 AuthApi -> Client: 200 OK -d {access token, refresh token}
 
@@ -128,22 +147,26 @@ Client <- UserApi: 401 UNAUTHORIZED -d {message}
 
 == Refresh access token ==
 
-Client -> AuthApi: Refresh access token
-AuthApi --> JWT.accessToken: Create access token
+Client -> AuthApi: **POST /auth/refresh_token** -h Authorization "bearer <refresh_token>"
+AuthApi --> JWT.accessToken: access_token = **write_token(user)**
 activate JWT.accessToken #green
 
-AuthApi -> Client: Return access and refresh tokens
-
-Client -> UserApi: Request resource with access token
-UserApi <-> AuthApi: Introspect access token
-Client <- UserApi: Return resource
+AuthApi -> Client: 200 OK -d {access_token}
 
 == Logout ==
 
-Client -> AuthApi: Revoke refresh token
-AuthApi --> JWT.accessToken: Revoke access token
+Client -> AuthApi: **POST /auth/logout** -h Authorization "bearer <access_token>"
+AuthApi --> JWT.accessToken: user = **read_token(access_token)**
+AuthApi --> JWT.accessToken: **destroy_token(access_token, user)**
 destroy JWT.accessToken
 
-AuthApi --> JWT.refreshToken: Revoke refresh token
+note right AuthApi
+? Непонятно откуда мы берем refresh_token ?
+end note
+AuthApi --> JWT.refreshToken: **destroy_token(refresh_token, user)**
 destroy JWT.refreshToken
+
+JWT.refreshToken --> Postgres: delete refresh_token
+
+AuthApi -> Client: 204 NO CONTENT
 @enduml
