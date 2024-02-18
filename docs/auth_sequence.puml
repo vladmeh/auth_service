@@ -1,0 +1,149 @@
+@startuml
+object AuthApi
+object UserApi
+entity UserRequest
+entity UserResponse
+class UserManager{
+    create_user(data: dict): User
+    authenticate(credentials: dict): User
+    _hashed_password(password: str): str
+    save_login_history(user: User, request_data: dict): None
+}
+class JWT{
+    assess_token
+    refresh_token
+
+    write_token(user: User): str
+    read_token(token: str, user_manager: UserManager): User | None
+    destroy_token(token: str, user: User): None
+
+    _generate_jwt(data: dict): str
+    _decode_jwt(encoded_jwt: str): dict
+}
+entity User
+@enduml
+
+@startuml
+'https://plantuml.com/sequence-diagram
+
+hide footbox
+skinparam stereotypePosition bottom
+skinparam ParticipantPadding 20
+skinparam BoxPadding 10
+'skinparam sequenceMessageAlign reverseDirection
+
+header %date("dd MMMM YYYY")
+title AuthApi service
+
+actor Client
+
+box "Api"
+participant UserApi <<routes /users/*>>
+participant AuthApi <<routes /auth/*>>
+end box
+
+box "Schemas"
+entity UserRequest
+entity UserResponse
+end box
+
+box "Services"
+participant UserManager
+participant JWT.accessToken
+participant JWT.refreshToken
+end box
+
+box "Models"
+entity User
+entity LoginHistory
+end box
+
+box
+database Postgres
+database Redis
+end box
+== Registers ==
+
+Client -> AuthApi: **POST /auth/registers** \n-d {username, email, password, confirm_password}
+AuthApi -> UserRequest: validate_data = validate(request data)
+AuthApi -> UserManager: user = **create_user**(validate_data)
+UserManager -> UserManager: hashed_password = **_hash_password(password)**
+UserManager --> User: **create** User(username, email, hashed_password)
+User --> Postgres: save User
+AuthApi -> UserResponse: response_data(user)
+AuthApi -> Client: **201 Created** -d {id, username, email}
+
+== Login ==
+
+Client -> AuthApi: **POST /auth/login** \n-d {login, password}
+AuthApi -> UserManager: user = **authenticate**(credentials={login, password})
+AuthApi -> JWT.accessToken: access_token = **write_token(user)**
+note over JWT.accessToken
+{
+    "header": {"alg":"HS256", "typ":"JWT"},
+    "payload": {
+        "user": "UUID",
+        "iat": now(),
+        "exp": now() + 10 sec,
+        "role": "guest" ???
+    }
+}
+end note
+activate JWT.accessToken #green
+
+AuthApi -> JWT.refreshToken: refresh_token = **write_token(user)**
+note over JWT.refreshToken
+{
+    "header": {"alg":"HS256", "typ":"JWT"},
+    "payload": {
+        "user": "UUID",
+        "iat": now(),
+        "exp": now() + 1 year,
+    }
+}
+end note
+activate JWT.refreshToken #green
+JWT.refreshToken --> Postgres: save refresh_token
+
+AuthApi --> UserManager: **save_login_history(user, <request data>)**
+LoginHistory --> Postgres: save login history
+
+AuthApi -> Client: 200 OK -d {access token, refresh token}
+
+== Requests ==
+
+Client -> UserApi: **GET /users/me** -h Authorization "bearer <access_token>"
+UserApi -> JWT.accessToken: user = **read_token(access_token)**
+UserApi -> UserResponse: response_data(user)
+Client <- UserApi: 200 OK -d {response_data}
+
+?--> JWT.accessToken: **Expire access token**
+destroy JWT.accessToken #green
+
+|||
+
+Client -> UserApi: **GET /users/me** -h Authorization "bearer <access_token>"
+UserApi -> JWT.accessToken: user = **read_token(access_token)**
+Client <- UserApi: 401 UNAUTHORIZED -d {message}
+
+== Refresh access token ==
+
+Client -> AuthApi: Refresh access token
+AuthApi --> JWT.accessToken: Create access token
+activate JWT.accessToken #green
+
+AuthApi -> Client: Return access and refresh tokens
+
+Client -> UserApi: Request resource with access token
+UserApi <-> AuthApi: Introspect access token
+Client <- UserApi: Return resource
+
+== Logout ==
+
+Client -> AuthApi: Revoke refresh token
+AuthApi --> JWT.accessToken: Revoke access token
+destroy JWT.accessToken
+
+AuthApi --> JWT.refreshToken: Revoke refresh token
+destroy JWT.refreshToken
+@enduml
