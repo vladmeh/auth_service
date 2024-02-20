@@ -46,7 +46,6 @@ jobs:
       #----------------------------------------------
       - name: Run linting
         run: |
-          cd src
           source .venv/bin/activate
-          ruff check .
-          mypy .
+          ruff check ./src
+          mypy ./src
