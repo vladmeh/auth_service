@@ -1,7 +1,6 @@
 from contextlib import asynccontextmanager
 
 import uvicorn
-
 from api import auth
 from core.config.settings import settings
 from db import redis_db
