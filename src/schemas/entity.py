@@ -4,13 +4,12 @@ from pydantic import BaseModel
 
 
 class UserCreate(BaseModel):
-    login: str
+    username: str
+    email: str
     password: str
-    first_name: str
-    last_name: str
 
 
 class UserInDB(BaseModel):
     id: UUID
-    first_name: str
-    last_name: str
+    username: str
+    email: str

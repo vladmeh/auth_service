@@ -12,7 +12,10 @@ entity UserRequest
 entity UserResponse
 class UserService{
     create_user(data: dict): User
+    get_user(user_id: str): User
     authenticate(credentials: dict): User
+    get_by_email(user_email: str): User
+
     save_login_history(data: dict, request_data: dict): LoginHistory
 
     _hashed_password(password: str): str
@@ -29,7 +32,6 @@ class JWTService{
     _decode_jwt(encoded_jwt: str): dict
 }
 entity User
-entity Role
 entity LoginHistory
 
 Api *-- UserRequest
@@ -38,7 +40,6 @@ Api o.. UserService
 Api o.right. JWTService
 
 UserService *-down- User
-Role -left-> User
 UserService *-down- LoginHistory
 
 @enduml
@@ -101,7 +102,7 @@ note over JWTService
 {
     "header": {"alg":"HS256", "typ":"JWT"},
     "payload": {
-        "user": "UUID",
+        "sub": "UUID",
         "iat": now(),
         "exp": now() + 10 sec,
         "role": "guest"
@@ -116,7 +117,7 @@ note over JWTService
 {
     "header": {"alg":"HS256", "typ":"JWT"},
     "payload": {
-        "user": "UUID",
+        "sub": "UUID",
         "iat": now(),
         "exp": now() + 1 year,
     }
